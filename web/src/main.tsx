@@ -1,8 +1,9 @@
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
-import App from "./components/App.tsx";
-import "tailwindcss/tailwind.css";
-import "./index.css";
+import App from "./components/App";
+
+// import "tailwindcss/tailwind.css";
+import "./theme.css";
 
 const rootElement = document.getElementById("root");
 const root = createRoot(rootElement!);

@@ -1,5 +1,7 @@
 {
   "workspaces": [
-    "web"
+    "api",
+    "web",
+    "web-ui"
   ]
 }
