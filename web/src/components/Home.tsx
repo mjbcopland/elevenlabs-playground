@@ -1,14 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
 import { Dispatch, useEffect, useMemo, useRef, useState } from "react";
-import lines from "../static/snapshot-sam.json";
 import * as Slate from "slate";
 import { Descendant, Operation } from "slate";
-import { ReactEditor } from "slate-react";
 import { RichTextEditor } from "./rich-text/RichTextEditor";
 import { Fn, cn, useEffectEvent } from "../util/react";
 import { RichText } from "./rich-text/RichText";
 import { RichTextArea } from "./rich-text/RichTextArea";
-import { enumerate, zip } from "../util/misc";
+import { enumerate, nonNullable, reversed, zip } from "../util/misc";
 import { generate } from "../util/generators";
 import { HTTPError } from "../errors";
 import * as Lucide from "lucide-react";
@@ -28,41 +26,6 @@ function base64ToBytes(base64: string): Uint8Array {
   const data = bytes(atob(base64));
   return new Uint8Array(data);
 }
-
-declare global {
-  interface Response {
-    lines(): AsyncIterable<string>;
-  }
-}
-
-Response.prototype.lines = async function* lines() {
-  const decoder = new TextDecoder();
-  const splitter = /\r?\n/; // newlines
-  const reader = this.body!.getReader();
-
-  let text = "";
-
-  while (true) {
-    const result = await reader.read();
-
-    if (result.done) {
-      break;
-    }
-
-    text += decoder.decode(result.value, { stream: true });
-
-    const chunks = text.split(splitter);
-
-    // the final chunk may be partial; keep it as the current text
-    text = nonNullable(chunks.pop());
-
-    for (const chunk of chunks) {
-      yield chunk;
-    }
-  }
-
-  yield text;
-};
 
 type DataChunk = { buffer: AudioBuffer; words: string[]; wordStartTimes: number[] };
 type DataCallback = (buffer: AudioBuffer, words: string[], wordStartTimes: number[], done: boolean) => void;
@@ -150,21 +113,6 @@ const playAudio = (buffer: AudioBuffer, options?: AbortOptions) => {
   });
 };
 
-function* reversed<T>(iterable: Iterable<T>) {
-  yield* Array.from(iterable).reverse();
-}
-
-type Nullable = null | undefined;
-
-function isNullable(value: unknown): value is Nullable {
-  return value === null || value === undefined;
-}
-
-function nonNullable<T>(value: T): NonNullable<T> {
-  if (isNullable(value)) throw new TypeError("Nullable");
-  return value as NonNullable<T>;
-}
-
 type WalkerNextFn<T, U = void> = (node: T, state: U) => void;
 type WalkerBase<T, U = void> = (node: T, state: U, next: WalkerNextFn<T, U>) => void;
 
@@ -194,10 +142,6 @@ function walk<T, U>(node: T, callback: WalkerCallback<T, U>, base: WalkerBase<T,
 const initialValue: RichText = [
   { type: "paragraph", children: [{ text: "You have selected Microsoft Sam as the computer's default voice." }] },
 ];
-// const initialValue: RichText = [
-//   { type: "paragraph", children: [{ text: "Hello," }] },
-//   { type: "paragraph", children: [{ text: "world!" }] },
-// ];
 
 export default function Home() {
   const editor = useRef<Slate.Editor>(null);
@@ -276,7 +220,7 @@ export default function Home() {
   });
 
   useEffect(() => {
-    if (mutation.error) console.log(mutation.error);
+    if (mutation.error) console.error(mutation.error);
   }, [mutation.error]);
 
   const onPlay = useEffectEvent(() => {
@@ -343,37 +287,3 @@ export default function Home() {
     </main>
   );
 }
-
-declare global {
-  interface Array<T> {
-    findLast<S extends T>(predicate: (value: T, index: number, obj: T[]) => value is S, thisArg?: any): S | undefined;
-    findLast(predicate: (value: T, index: number, obj: T[]) => unknown, thisArg?: any): T | undefined;
-    findLastIndex(predicate: (value: T, index: number, obj: T[]) => unknown, thisArg?: any): number;
-  }
-}
-
-Array.prototype.findLast = function findLast(this, predicate) {
-  const index = this.findLastIndex(predicate);
-  return this.at(index);
-};
-
-Array.prototype.findLastIndex = function findLastIndex(this, predicate) {
-  let i = this.length - 1;
-
-  while (i >= 0 && !predicate(this[i], i, this)) {
-    i -= 1;
-  }
-
-  return i;
-};
-
-declare global {
-  interface PromiseConstructor {
-    try<T extends Fn>(callback: T, ...args: Parameters<T>): Promise<Awaited<ReturnType<T>>>;
-  }
-}
-
-Promise.try = function (callback, ...args) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return new Promise((resolve) => resolve(callback.apply(this, args) as any));
-};

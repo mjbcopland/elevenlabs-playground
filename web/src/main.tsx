@@ -2,6 +2,10 @@ import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./components/App";
 
+import "./polyfill/array";
+import "./polyfill/promise";
+import "./polyfill/response";
+
 // import "tailwindcss/tailwind.css";
 import "./theme.css";
 

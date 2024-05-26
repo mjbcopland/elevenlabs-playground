@@ -20,3 +20,20 @@ export function zip<T, U>(left: ArrayLike<T>, right: ArrayLike<U>): Array<[T, U]
     return tuple(left[i], right[i]);
   });
 }
+
+export function* reversed<T>(iterable: Iterable<T>) {
+  yield* Array.from(iterable).reverse();
+}
+
+declare global {
+  type Nullable = null | undefined;
+}
+
+export function isNullable(value: unknown): value is Nullable {
+  return value === null || value === undefined;
+}
+
+export function nonNullable<T>(value: T): NonNullable<T> {
+  if (isNullable(value)) throw new TypeError("Nullable");
+  return value as NonNullable<T>;
+}
