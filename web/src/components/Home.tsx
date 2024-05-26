@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { Dispatch, useEffect, useMemo, useRef, useState } from "react";
-import lines from "../static/snapshot.json";
+import lines from "../static/snapshot-sam.json";
 import * as Slate from "slate";
 import { Descendant, Operation } from "slate";
 import { ReactEditor } from "slate-react";
@@ -10,6 +10,8 @@ import { RichText } from "./rich-text/RichText";
 import { RichTextArea } from "./rich-text/RichTextArea";
 import { enumerate, zip } from "../util/misc";
 import { generate } from "../util/generators";
+import { HTTPError } from "../errors";
+import * as Lucide from "lucide-react";
 
 const MAX_LEN = 5000; // free tier
 const VOICE_ID = "21m00Tcm4TlvDq8ikWAM"; // Rachel
@@ -34,8 +36,32 @@ declare global {
 }
 
 Response.prototype.lines = async function* lines() {
-  const text = await this.text();
-  yield* text.split("\n");
+  const matcher = /\r?\n/;
+  const decoder = new TextDecoder();
+  let buf = "";
+
+  const reader = this.body!.getReader();
+
+  while (true) {
+    const result = await reader.read();
+
+    if (result.done) {
+      if (buf.length > 0) {
+        yield buf;
+      }
+      return;
+    }
+
+    buf += decoder.decode(result.value, { stream: true });
+
+    const parts = buf.split(matcher);
+
+    buf = nonNullable(parts.pop());
+
+    for (const part of parts) {
+      yield part;
+    }
+  }
 };
 
 type DataChunk = { buffer: AudioBuffer; words: string[]; wordStartTimes: number[] };
@@ -57,28 +83,51 @@ function startStreaming(text: string, options?: AbortOptions | DataCallback) {
   const onData = options;
 
   // const url = `/api/v1/text-to-speech/${VOICE_ID}/stream/with-timestamps`;
+  const url = `/api/snapshot`;
 
-  // const data = {
-  //   text: variables.text,
-  //   model_id: "eleven_multilingual_v2",
-  //   voice_settings: {
-  //     stability: 0.5,
-  //     similarity_boost: 0.75,
-  //   },
-  // };
+  const data = {
+    text: text,
+    model_id: "eleven_multilingual_v2",
+    voice_settings: {
+      stability: 0.5,
+      similarity_boost: 0.75,
+    },
+  };
 
-  // const response = await fetch(url, {
-  //   method: "POST",
-  //   body: JSON.stringify(data),
-  //   headers: new Headers([["content-type", "application/json"]]),
-  // });
+  Promise.resolve().then(async () => {
+    const response = await fetch(url, {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: new Headers([["content-type", "application/json"]]),
+    });
 
-  // if (!response.ok) {
-  //   throw new HTTPError(response.status);
-  // }
+    if (!response.ok) {
+      throw new HTTPError(response.status);
+    }
 
-  // console.log(await response.text());
-  // return;
+    for await (const line of response.lines()) {
+      if (!line) continue; // skip keepalive newlines
+
+      const value = JSON.parse(line);
+
+      const bytes = base64ToBytes(value["audio_base64"]);
+      const buffer = await audioContext.decodeAudioData(bytes.buffer);
+
+      if (value["alignment"]) {
+        const words = value["alignment"]["characters"];
+        const timestamps = value["alignment"]["character_start_times_seconds"];
+        onData(buffer, words, timestamps, false);
+        continue;
+      }
+
+      onData(buffer, [], [], false);
+    }
+
+    const empty = audioContext.createBuffer(1, 1, audioContext.sampleRate);
+    onData(empty, [], [], true);
+  });
+
+  return;
 
   Promise.resolve().then(async () => {
     for (const line of lines) {
@@ -169,11 +218,13 @@ function walk<T, U>(node: T, callback: WalkerCallback<T, U>, base: WalkerBase<T,
 }
 
 // const initialValue: RichText = [{ type: "paragraph", children: [{ text: "" }] }];
-// const initialValue: RichText = [{ type: "paragraph", children: [{ text: "You have selected Microsoft Sam as the computer's default voice." }] }];
 const initialValue: RichText = [
-  { type: "paragraph", children: [{ text: "Hello," }] },
-  { type: "paragraph", children: [{ text: "world!" }] },
+  { type: "paragraph", children: [{ text: "You have selected Microsoft Sam as the computer's default voice." }] },
 ];
+// const initialValue: RichText = [
+//   { type: "paragraph", children: [{ text: "Hello," }] },
+//   { type: "paragraph", children: [{ text: "world!" }] },
+// ];
 
 export default function Home() {
   const editor = useRef<Slate.Editor>(null);
@@ -304,8 +355,10 @@ export default function Home() {
         </RichTextEditor>
 
         <div className="flex flex-row-reverse items-center gap-4">
-          <button className="rounded-full" onClick={onPlay}>
-            Generate speech
+          <button className="relative rounded-full" onClick={onPlay} disabled={mutation.isPending}>
+            <span className={cn({ invisible: mutation.isPending })}>Generate speech</span>
+
+            <Lucide.LoaderCircle className={cn("absolute animate-spin", { hidden: !mutation.isPending })} />
           </button>
 
           <span className={cn("text-sm", { "text-destructive": text.length > MAX_LEN })}>
