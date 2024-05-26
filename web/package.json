@@ -25,7 +25,6 @@
   "devDependencies": {
     "@tsconfig/node20": "^20.1.4",
     "@tsconfig/vite-react": "^3.0.2",
-    "@types/http-status-codes": "^1.2.0",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@types/react-router-dom": "^5.3.3",

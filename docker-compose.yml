@@ -1,0 +1,17 @@
+services:
+  backend:
+    build:
+      dockerfile: api/Dockerfile
+      # context: .
+    environment:
+      - XI_API_KEY=${XI_API_KEY}
+
+  frontend:
+    build:
+      dockerfile: web/Dockerfile
+      # context: .
+    ports:
+      - 8080:8080
+
+networks:
+  default: {}
