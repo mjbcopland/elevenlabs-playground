@@ -1,4 +1,12 @@
-import { useState, useLayoutEffect, ComponentProps, PropsWithChildren, FC } from "react";
+import {
+  useState,
+  useLayoutEffect,
+  ComponentProps,
+  PropsWithChildren,
+  FC,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
 import * as Slate from "slate";
 import { withHistory } from "slate-history";
 import { Editable, Slate as SlateProvider, withReact } from "slate-react";
@@ -7,17 +15,20 @@ import { assert } from "../../util/assert";
 import { renderElement } from "./elements";
 import { renderLeaf } from "./elements/leaf";
 import { noop } from "../../util/noop";
+import { RichText } from "./RichText";
 
 interface Props extends PropsWithChildren {
   onChange(value: RichText, options: { operation?: Slate.Operation }): void;
   value: RichText;
 }
 
-export type RichText = Slate.Descendant[];
-
-export const RichTextEditor: FC<Props> = ({ value, onChange = noop, ...props }) => {
+export const RichTextEditor = forwardRef(({ value, onChange = noop, ...props }: Props, ref) => {
   const [editor] = useState((): Slate.Editor => {
     return withEvents(withReact(withHistory(Slate.createEditor())));
+  });
+
+  useImperativeHandle(ref, () => {
+    return editor;
   });
 
   useLayoutEffect(() => {
@@ -26,6 +37,11 @@ export const RichTextEditor: FC<Props> = ({ value, onChange = noop, ...props }) 
       editor.normalize({
         force: true,
       });
+
+      editor.history.undos = [];
+      editor.history.redos = [];
+
+      editor.onChange();
     }
   });
 
@@ -39,11 +55,9 @@ export const RichTextEditor: FC<Props> = ({ value, onChange = noop, ...props }) 
 
     void editor.addEventListener("change", listener);
     return () => editor.removeEventListener("change", listener);
-  });
+  }, [editor, onChange]);
 
   return <SlateProvider editor={editor} initialValue={value} {...props} />;
-};
+});
 
-export const RichTextArea = (props) => {
-  return <Editable role="textbox" aria-multiline renderElement={renderElement} renderLeaf={renderLeaf} {...props} />;
-};
+RichTextEditor.displayName = "RichTextEditor";

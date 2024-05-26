@@ -1,9 +1,11 @@
 import { useMutation, useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { Descendant, Operation } from "slate";
 import { Slate as SlateProvider } from "slate-react";
-import { RichTextEditor, RichTextArea, RichText } from "./rich-text/RichTextEditor";
+import { RichTextEditor } from "./rich-text/RichTextEditor";
 import { useParams } from "react-router-dom";
 import { useMemo } from "react";
+import { RichText } from "./rich-text/RichText";
+import { RichTextArea } from "./rich-text/RichTextArea";
 
 const VOICE_ID = "21m00Tcm4TlvDq8ikWAM"; // Rachel
 
