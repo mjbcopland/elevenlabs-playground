@@ -77,9 +77,30 @@ function startStreaming(text: string, options?: AbortOptions | DataCallback) {
       const buffer = await audioContext.decodeAudioData(bytes.buffer);
 
       if (value["alignment"]) {
-        const words = value["alignment"]["characters"];
+        const characters = value["alignment"]["characters"];
         const timestamps = value["alignment"]["character_start_times_seconds"];
-        onData(buffer, words, timestamps, false);
+
+        const groups = [[]];
+
+        for (const [c, t] of zip(characters, timestamps)) {
+          if (c === " ") {
+            groups.push([]);
+          }
+
+          groups[groups.length - 1].push([c, t]);
+        }
+
+        const words = groups.map((group) => {
+          return group.map((g) => g[0]).join("");
+        });
+
+        const wordTimestamps = groups.map((group) => {
+          return group[0][1];
+        });
+
+        console.log(groups);
+
+        onData(buffer, words, wordTimestamps, false);
         continue;
       }
 
@@ -200,18 +221,19 @@ export default function Home() {
 
       let offset = 0;
       for await (const chunk of startStreaming(variables.text, { signal: abortController.current.signal })) {
-        for (const [index, [word, wordStartTime]] of enumerate(zip(chunk.words, chunk.wordStartTimes))) {
+        console.log(chunk.words, chunk.wordStartTimes);
+        for (const [word, wordStartTime] of zip(chunk.words, chunk.wordStartTimes)) {
           const timeout = setTimeout(setActiveRange, wordStartTime * 1000, {
-            anchor: { path: [], offset: offset + index },
-            focus: { path: [], offset: offset + index + word.length },
+            focus: { path: [], offset: offset + word.length },
+            anchor: { path: [], offset: offset },
           });
 
+          offset += word.length;
           abortController.current.signal.addEventListener("abort", () => {
             clearTimeout(timeout);
           });
         }
 
-        offset += chunk.wordStartTimes.length;
         await playAudio(chunk.buffer, { signal: abortController.current.signal });
       }
 

@@ -6,8 +6,9 @@ export const renderLeaf = (props: RenderLeafProps): JSX.Element => {
 
   const style: CSSProperties = {
     color: highlight ? "blue" : undefined,
-    // fontWeight: highlight ? "bold" : undefined,
-    textDecoration: highlight ? "underline" : undefined,
+    fontSize: highlight ? "larger" : undefined,
+    fontWeight: highlight ? "bold" : undefined,
+    // textDecoration: highlight ? "underline" : undefined,
   };
 
   return (
