@@ -143,10 +143,10 @@ function nonNullable<T>(value: T): NonNullable<T> {
   return value as NonNullable<T>;
 }
 
-type WalkerNextFn<T, U> = (node: T, state: U) => void;
-type WalkerBase<T, U> = (node: T, state: U, next: WalkerNextFn<T, U>) => void;
+type WalkerNextFn<T, U = void> = (node: T, state: U) => void;
+type WalkerBase<T, U = void> = (node: T, state: U, next: WalkerNextFn<T, U>) => void;
 
-type WalkerCallback<T, U> = (node: T, state: U) => void;
+type WalkerCallback<T, U = void> = (node: T, state: U) => void;
 
 function walk<T, U>(node: T, callback: WalkerCallback<T, U>, base: WalkerBase<T, U>, state: U) {
   const stack = [{ type: "enter", node, state }];
@@ -184,25 +184,22 @@ export default function Home() {
     if (options?.operation?.type !== "set_selection") setValue(value);
   });
 
-  const [activeRange, setActiveRange] = useState((): Slate.Range | undefined => {
-    return undefined;
-  });
+  // Note: this uses the same type as Slate.Range but the offset is from the root, not the associated path
+  const [activeRange, setActiveRange] = useState((): Slate.Range | undefined => undefined);
 
   const textValues = useMemo(() => {
     const nodes: Array<{ text: string; path: Slate.Path; offset: number }> = [];
+    const root: Slate.NodeEntry = [{ children: value }, []];
 
-    const root: Slate.Node = { children: value };
-    const state: Slate.Path = [];
-
-    const base: WalkerBase<Slate.Node, Slate.Path> = (node, state, next) => {
-      const children = "children" in node ? node.children : [];
+    const base: WalkerBase<Slate.NodeEntry> = (entry, state, next) => {
+      const children = "children" in entry[0] ? entry[0].children : [];
       for (const [index, child] of reversed(enumerate(children))) {
-        next(child, state.concat(index));
+        next([child, entry[1].concat(index)]);
       }
     };
 
     let offset = 0;
-    const walker: WalkerCallback<Slate.Node, Slate.Path> = (node, path) => {
+    const walker: WalkerCallback<Slate.NodeEntry> = ([node, path]) => {
       if (Slate.Element.isElement(node) && node.type === "paragraph") {
         nodes.push({ text: "\n", path, offset });
         offset += 1;
@@ -214,7 +211,7 @@ export default function Home() {
       }
     };
 
-    void walk(root, walker, base, state);
+    void walk(root, walker, base, undefined);
     return nodes;
   }, [value]);
 
@@ -234,7 +231,7 @@ export default function Home() {
       abortController.current = new AbortController();
 
       let offset = 0;
-      for await (const chunk of startStreaming(variables.text, { signal: abortController.current!.signal })) {
+      for await (const chunk of startStreaming(variables.text, { signal: abortController.current.signal })) {
         for (const [index, [word, wordStartTime]] of enumerate(zip(chunk.words, chunk.wordStartTimes))) {
           const timeout = setTimeout(setActiveRange, wordStartTime * 1000, {
             anchor: { path: [], offset: offset + index },
@@ -299,7 +296,7 @@ export default function Home() {
 
         <RichTextEditor ref={editor} value={value} onChange={onChange}>
           <RichTextArea
-            _decorate={decorate}
+            decorate={decorate}
             placeholder="Start typing..."
             readOnly={mutation.isPending}
             className="max-h-[160px] overflow-auto"
@@ -311,7 +308,7 @@ export default function Home() {
             Generate speech
           </button>
 
-          <span className={cn("text-sm", text.length > MAX_LEN && "text-red-600")}>
+          <span className={cn("text-sm", { "text-destructive": text.length > MAX_LEN })}>
             {text.length} / {MAX_LEN}
           </span>
         </div>

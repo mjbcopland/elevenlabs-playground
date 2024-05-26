@@ -1,22 +1,20 @@
-import { ComponentProps, FC, useCallback } from "react";
+import { ComponentProps, FC, useMemo } from "react";
 import * as Slate from "slate";
 import { Editable, useSlateStatic } from "slate-react";
 import { renderElement } from "./elements";
 import { renderLeaf } from "./elements/leaf";
 
-interface Props extends Omit<ComponentProps<typeof Editable>, "renderElement" | "renderLeaf"> {
-  _decorate?: (node: Slate.Node, path: Slate.Path, editor: Slate.Editor) => Slate.Range[];
+interface Props extends Omit<ComponentProps<typeof Editable>, "decorate" | "renderElement" | "renderLeaf"> {
+  decorate?: (node: Slate.Node, path: Slate.Path, editor: Slate.Editor) => Slate.Range[];
 }
 
-export const RichTextArea: FC<Props> = ({ _decorate, ...props }) => {
+export const RichTextArea: FC<Props> = ({ decorate, ...props }) => {
   const editor = useSlateStatic();
 
-  const decorate = useCallback(
-    ([node, path]: Slate.NodeEntry) => {
-      return _decorate ? _decorate(node, path, editor) : [];
-    },
-    [_decorate, editor],
-  );
+  // wrap the incoming decorate function in a scope with the current editor
+  const _decorate = useMemo((): ((entry: Slate.NodeEntry) => Slate.Range[]) | undefined => {
+    return decorate ? ([node, path]) => decorate(node, path, editor) : undefined;
+  }, [decorate, editor]);
 
   return (
     <Editable
@@ -26,7 +24,7 @@ export const RichTextArea: FC<Props> = ({ _decorate, ...props }) => {
       style={{ whiteSpace: "pre-wrap" }}
       renderElement={renderElement}
       renderLeaf={renderLeaf}
-      decorate={decorate}
+      decorate={_decorate}
       {...props}
     />
   );
