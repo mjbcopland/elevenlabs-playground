@@ -4,12 +4,19 @@ services:
       dockerfile: api/Dockerfile
       # context: .
     environment:
+      - PORT=8080
       - XI_API_KEY=${XI_API_KEY}
+    networks:
+      - default
 
   frontend:
     build:
       dockerfile: web/Dockerfile
       # context: .
+    environment:
+      - PROXY_PASS=http://backend:8080
+    networks:
+      - default
     ports:
       - 8080:80
 
