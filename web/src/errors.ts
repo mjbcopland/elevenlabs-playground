@@ -1,11 +1,15 @@
 import { getReasonPhrase } from "http-status-codes";
 
 export class HTTPError extends Error {
-  public constructor(
-    public readonly status: number,
-    message?: string,
-  ) {
-    super(message);
+  public readonly name: string = "HTTPError";
+  public readonly cause: unknown;
+  public readonly status: number;
+
+  public constructor(status: number, options?: { cause?: Error }) {
+    super();
+
+    this.cause = options?.cause;
+    this.status = status;
   }
 
   public get statusText(): string {
@@ -13,10 +17,6 @@ export class HTTPError extends Error {
   }
 
   public get message(): string {
-    if (this.message === undefined) {
-      return `${this.status} ${this.statusText}`;
-    }
-
-    return `${this.status} ${this.statusText} ${this.message}`;
+    return `${this.status} ${this.statusText}`;
   }
 }

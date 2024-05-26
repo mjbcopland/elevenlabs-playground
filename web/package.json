@@ -12,6 +12,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.37.1",
     "buffer": "^6.0.3",
+    "clsx": "^2.1.1",
     "elevenlabs": "^0.6.0",
     "http-status-codes": "^2.3.0",
     "lucide-react": "^0.379.0",
@@ -20,7 +21,8 @@
     "react-router-dom": "^6.23.1",
     "slate": "^0.103.0",
     "slate-history": "^0.100.0",
-    "slate-react": "^0.104.0"
+    "slate-react": "^0.104.0",
+    "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {
     "@tsconfig/node20": "^20.1.4",
@@ -41,6 +43,7 @@
     "postcss": "^8.4.38",
     "prettier": "^3.2.5",
     "tailwindcss": "^3.4.3",
+    "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.2.2",
     "vite": "^5.2.0"
   }

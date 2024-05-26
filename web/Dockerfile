@@ -13,5 +13,5 @@ run npm run build
 
 from nginx:1.26-alpine
 
-copy --from=build dist /usr/share/nginx/html
-copy --from=build nginx/nginx.conf /etc/nginx/conf.d/default.conf
+copy --from=build /app/web/dist /usr/share/nginx/html
+copy --from=build /app/web/nginx/nginx.conf /etc/nginx/conf.d/default.conf
