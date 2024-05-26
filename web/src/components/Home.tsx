@@ -5,7 +5,7 @@ import * as Slate from "slate";
 import { Descendant, Operation } from "slate";
 import { ReactEditor } from "slate-react";
 import { RichTextEditor } from "./rich-text/RichTextEditor";
-import { cn, useEffectEvent } from "../util/react";
+import { Fn, cn, useEffectEvent } from "../util/react";
 import { RichText } from "./rich-text/RichText";
 import { RichTextArea } from "./rich-text/RichTextArea";
 import { enumerate, zip } from "../util/misc";
@@ -36,32 +36,32 @@ declare global {
 }
 
 Response.prototype.lines = async function* lines() {
-  const matcher = /\r?\n/;
   const decoder = new TextDecoder();
-  let buf = "";
-
+  const splitter = /\r?\n/; // newlines
   const reader = this.body!.getReader();
+
+  let text = "";
 
   while (true) {
     const result = await reader.read();
 
     if (result.done) {
-      if (buf.length > 0) {
-        yield buf;
-      }
-      return;
+      break;
     }
 
-    buf += decoder.decode(result.value, { stream: true });
+    text += decoder.decode(result.value, { stream: true });
 
-    const parts = buf.split(matcher);
+    const chunks = text.split(splitter);
 
-    buf = nonNullable(parts.pop());
+    // the final chunk may be partial; keep it as the current text
+    text = nonNullable(chunks.pop());
 
-    for (const part of parts) {
-      yield part;
+    for (const chunk of chunks) {
+      yield chunk;
     }
   }
+
+  yield text;
 };
 
 type DataChunk = { buffer: AudioBuffer; words: string[]; wordStartTimes: number[] };
@@ -94,7 +94,7 @@ function startStreaming(text: string, options?: AbortOptions | DataCallback) {
     },
   };
 
-  Promise.resolve().then(async () => {
+  Promise.try(async () => {
     const response = await fetch(url, {
       method: "POST",
       body: JSON.stringify(data),
@@ -125,34 +125,7 @@ function startStreaming(text: string, options?: AbortOptions | DataCallback) {
 
     const empty = audioContext.createBuffer(1, 1, audioContext.sampleRate);
     onData(empty, [], [], true);
-  });
-
-  return;
-
-  Promise.resolve().then(async () => {
-    for (const line of lines) {
-      const bytes = base64ToBytes(line["audio_base64"]);
-      const buffer = await audioContext.decodeAudioData(bytes.buffer);
-
-      // if (data["alignment"]) {
-      //   characters.push(data["alignment"]["characters"]);
-      //   character_start_times_seconds.push(data["alignment"]["character_start_times_seconds"]);
-      //   character_end_times_seconds.push(data["alignment"]["character_end_times_seconds"]);
-      // }
-
-      if (line["alignment"]) {
-        const words = line["alignment"]["characters"];
-        const timestamps = line["alignment"]["character_start_times_seconds"];
-        onData(buffer, words, timestamps, false);
-        continue;
-      }
-
-      onData(buffer, [], [], false);
-    }
-
-    const empty = audioContext.createBuffer(1, 1, audioContext.sampleRate);
-    onData(empty, [], [], true);
-  });
+  }).catch(console.error);
 }
 
 interface AbortOptions {
@@ -336,6 +309,8 @@ export default function Home() {
     return [];
   };
 
+  const placeholder = "Start typing here or paste any text you want to turn into lifelike speech...";
+
   return (
     <main className="max-w-screen-lg mx-auto my-32 w-full">
       <section className="card max-w-prose mx-auto p-4 rounded-2xl w-full flex flex-col gap-4">
@@ -348,7 +323,7 @@ export default function Home() {
         <RichTextEditor ref={editor} value={value} onChange={onChange}>
           <RichTextArea
             decorate={decorate}
-            placeholder="Start typing..."
+            placeholder={placeholder}
             readOnly={mutation.isPending}
             className="max-h-[160px] overflow-auto"
           />
@@ -356,9 +331,8 @@ export default function Home() {
 
         <div className="flex flex-row-reverse items-center gap-4">
           <button className="relative rounded-full" onClick={onPlay} disabled={mutation.isPending}>
-            <span className={cn({ invisible: mutation.isPending })}>Generate speech</span>
-
             <Lucide.LoaderCircle className={cn("absolute animate-spin", { hidden: !mutation.isPending })} />
+            <span className={cn({ invisible: mutation.isPending })}>Generate speech</span>
           </button>
 
           <span className={cn("text-sm", { "text-destructive": text.length > MAX_LEN })}>
@@ -391,4 +365,15 @@ Array.prototype.findLastIndex = function findLastIndex(this, predicate) {
   }
 
   return i;
+};
+
+declare global {
+  interface PromiseConstructor {
+    try<T extends Fn>(callback: T, ...args: Parameters<T>): Promise<Awaited<ReturnType<T>>>;
+  }
+}
+
+Promise.try = function (callback, ...args) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return new Promise((resolve) => resolve(callback.apply(this, args) as any));
 };
