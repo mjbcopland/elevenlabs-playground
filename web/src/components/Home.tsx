@@ -169,6 +169,7 @@ function walk<T, U>(node: T, callback: WalkerCallback<T, U>, base: WalkerBase<T,
 }
 
 // const initialValue: RichText = [{ type: "paragraph", children: [{ text: "" }] }];
+// const initialValue: RichText = [{ type: "paragraph", children: [{ text: "You have selected Microsoft Sam as the computer's default voice." }] }];
 const initialValue: RichText = [
   { type: "paragraph", children: [{ text: "Hello," }] },
   { type: "paragraph", children: [{ text: "world!" }] },
@@ -188,39 +189,32 @@ export default function Home() {
   });
 
   const textValues = useMemo(() => {
-    // Like Pick<Slate.Node, "children">
-    type Node = Slate.Text | { children: Slate.Descendant[] };
-
     const nodes: Array<{ text: string; path: Slate.Path; offset: number }> = [];
-    let offset = 0;
 
-    const root: Node = { children: value };
+    const root: Slate.Node = { children: value };
     const state: Slate.Path = [];
 
-    const base: WalkerBase<Node, Slate.Path> = (node, state, next) => {
+    const base: WalkerBase<Slate.Node, Slate.Path> = (node, state, next) => {
       const children = "children" in node ? node.children : [];
       for (const [index, child] of reversed(enumerate(children))) {
         next(child, state.concat(index));
       }
     };
 
-    walk(
-      root,
-      (node, path) => {
-        if (Slate.Element.isElement(node) && node.type === "paragraph") {
-          nodes.push({ text: "\n", path, offset });
-          offset += 1;
-        }
+    let offset = 0;
+    const walker: WalkerCallback<Slate.Node, Slate.Path> = (node, path) => {
+      if (Slate.Element.isElement(node) && node.type === "paragraph") {
+        nodes.push({ text: "\n", path, offset });
+        offset += 1;
+      }
 
-        if (Slate.Text.isText(node)) {
-          nodes.push({ text: node.text, path, offset });
-          offset += node.text.length;
-        }
-      },
-      base,
-      state,
-    );
+      if (Slate.Text.isText(node)) {
+        nodes.push({ text: node.text, path, offset });
+        offset += node.text.length;
+      }
+    };
 
+    void walk(root, walker, base, state);
     return nodes;
   }, [value]);
 
