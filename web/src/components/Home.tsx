@@ -45,8 +45,8 @@ function startStreaming(text: string, options?: AbortOptions | DataCallback) {
 
   const onData = options;
 
-  // const url = `/api/v1/text-to-speech/${VOICE_ID}/stream/with-timestamps`;
-  const url = `/api/snapshot`;
+  const url = `/api/v1/text-to-speech/${VOICE_ID}/stream/with-timestamps`;
+  // const url = `/api/snapshot`;
 
   const data = {
     text: text,
@@ -159,10 +159,10 @@ function walk<T, U>(node: T, callback: WalkerCallback<T, U>, base: WalkerBase<T,
   }
 }
 
-// const initialValue: RichText = [{ type: "paragraph", children: [{ text: "" }] }];
-const initialValue: RichText = [
-  { type: "paragraph", children: [{ text: "You have selected Microsoft Sam as the computer's default voice." }] },
-];
+const initialValue: RichText = [{ type: "paragraph", children: [{ text: "" }] }];
+// const initialValue: RichText = [
+//   { type: "paragraph", children: [{ text: "You have selected Microsoft Sam as the computer's default voice." }] },
+// ];
 
 export default function Home() {
   const editor = useRef<Slate.Editor>(null);
