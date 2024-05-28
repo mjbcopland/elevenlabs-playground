@@ -11,4 +11,4 @@ run npm ci
 
 env NODE_ENV="production"
 
-cmd npm exec ts-node -- -T src/main
+cmd npm run start
