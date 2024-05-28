@@ -98,8 +98,6 @@ function startStreaming(text: string, options?: AbortOptions | DataCallback) {
           return group[0][1];
         });
 
-        console.log(groups);
-
         onData(buffer, words, wordTimestamps, false);
         continue;
       }
@@ -221,7 +219,6 @@ export default function Home() {
 
       let offset = 0;
       for await (const chunk of startStreaming(variables.text, { signal: abortController.current.signal })) {
-        console.log(chunk.words, chunk.wordStartTimes);
         for (const [word, wordStartTime] of zip(chunk.words, chunk.wordStartTimes)) {
           const timeout = setTimeout(setActiveRange, wordStartTime * 1000, {
             focus: { path: [], offset: offset + word.length },
