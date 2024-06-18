@@ -45,8 +45,8 @@ function startStreaming(text: string, options?: AbortOptions | DataCallback) {
 
   const onData = options;
 
-  const url = `/api/v1/text-to-speech/${VOICE_ID}/stream/with-timestamps`;
-  // const url = `/api/snapshot`;
+  // const url = `/api/v1/text-to-speech/${VOICE_ID}/stream/with-timestamps`;
+  const url = `/api/snapshot`;
 
   const data = {
     text: text,
@@ -157,10 +157,10 @@ function walk<T, U>(node: T, callback: WalkerCallback<T, U>, base: WalkerBase<T,
   }
 }
 
-const initialValue: RichText = [{ type: "paragraph", children: [{ text: "" }] }];
-// const initialValue: RichText = [
-//   { type: "paragraph", children: [{ text: "You have selected Microsoft Sam as the computer's default voice." }] },
-// ];
+// const initialValue: RichText = [{ type: "paragraph", children: [{ text: "" }] }];
+const initialValue: RichText = [
+  { type: "paragraph", children: [{ text: "You have selected Microsoft Sam as the computer's default voice." }] },
+];
 
 export default function Home() {
   const editor = useRef<Slate.Editor>(null);
@@ -234,6 +234,7 @@ export default function Home() {
         await playAudio(chunk.buffer, { signal: abortController.current.signal });
       }
 
+      console.log("done");
       setActiveRange(undefined);
     },
   });
@@ -246,7 +247,7 @@ export default function Home() {
     mutation.mutate({ text });
   });
 
-  const decorate = (node: Slate.Node, path: Slate.Path, editor: Slate.Editor) => {
+  const decorate = (node: Slate.Node, path: Slate.Path, editor: Slate.Editor): Slate.Range[] => {
     const range = Slate.Editor.range(editor, path);
 
     if (Slate.Text.isText(node) && activeRange) {
@@ -264,8 +265,14 @@ export default function Home() {
           focus: { path: end.path, offset: activeRange.focus.offset - end.offset },
         };
 
+        const ranges: Slate.Range[] = [];
         const intersection = Slate.Range.intersection(range, newRange) ?? undefined;
-        if (intersection !== undefined) return [{ ...intersection, style: { highlight: true } }];
+
+        if (intersection !== undefined) ranges.push({ ...intersection, highlight: true });
+
+        ranges.push({ ...Slate.range(editor, Slate.Range.end(newRange), Slate.Range.end(range)), muted: true });
+
+        return ranges;
       }
     }
 
@@ -288,7 +295,7 @@ export default function Home() {
             decorate={decorate}
             placeholder={placeholder}
             readOnly={mutation.isPending}
-            className="max-h-[160px] overflow-auto"
+            className="max-h-[160px] overflow-auto text-lg"
           />
         </RichTextEditor>
 

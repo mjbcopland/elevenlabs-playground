@@ -1,18 +1,17 @@
-import { CSSProperties } from "react";
 import { RenderLeafProps } from "slate-react";
+import { cn } from "../../../util/react";
 
 export const renderLeaf = (props: RenderLeafProps): JSX.Element => {
-  const highlight = props.leaf.style?.highlight ?? false;
+  const highlight = props.leaf.highlight ?? false;
+  const muted = props.leaf.muted ?? false;
 
-  const style: CSSProperties = {
-    color: highlight ? "blue" : undefined,
-    fontSize: highlight ? "larger" : undefined,
-    fontWeight: highlight ? "bold" : undefined,
-    // textDecoration: highlight ? "underline" : undefined,
-  };
+  const className = cn({
+    "bg-gray-200": highlight,
+    "text-muted-foreground": muted,
+  });
 
   return (
-    <span style={style} {...props.attributes}>
+    <span className={className} {...props.attributes}>
       {props.children}
     </span>
   );
